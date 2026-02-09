@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neuro-Kernel Terminal Logger</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', 'Monaco', monospace;
+      background: #0d1117;
+      color: #e6edf3;
+      overflow: hidden;
+    }
+
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .terminal-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #0d1117;
+    }
+
+    .terminal-header {
+      background: #161b22;
+      padding: 16px 20px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .terminal-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #3fb950;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .terminal-logs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      background: #0d1117;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .terminal-logs::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .terminal-logs::-webkit-scrollbar-track {
+      background: #0d1117;
+    }
+
+    .terminal-logs::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+
+    .terminal-logs::-webkit-scrollbar-thumb:hover {
+      background: #484f58;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .log-info {
+      color: #79c0ff;
+    }
+
+    .log-success {
+      color: #3fb950;
+    }
+
+    .log-error {
+      color: #f85149;
+    }
+
+    .log-warning {
+      color: #d29922;
+    }
+
+    .log-command {
+      color: #a371f7;
+      font-weight: 600;
+    }
+
+    .log-timestamp {
+      color: #6e7681;
+      font-size: 11px;
+      margin-right: 8px;
+    }
+
+    .terminal-footer {
+      background: #161b22;
+      padding: 12px 20px;
+      border-top: 1px solid #30363d;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .command-input {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+
+    .command-input:focus {
+      outline: none;
+      border-color: #3fb950;
+      box-shadow: 0 0 0 2px rgba(63, 185, 80, 0.1);
+    }
+
+    .command-btn {
+      background: #238636;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .command-btn:hover {
+      background: #2ea043;
+    }
+
+    .command-btn:active {
+      background: #1f6feb;
+    }
+
+    .clear-btn {
+      background: #21262d;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .clear-btn:hover {
+      background: #30363d;
+      border-color: #45464f;
+    }
+
+    .log-count {
+      color: #6e7681;
+      font-size: 12px;
+      padding: 8px 12px;
+      background: #161b22;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function TerminalLogger() {
+      const [logs, setLogs] = useState([]);
+      const [command, setCommand] = useState('');
+      const [isConnected, setIsConnected] = useState(false);
+      const logsEndRef = useRef(null);
+      const eventSourceRef = useRef(null);
+
+      // Auto-scroll to bottom
+      useEffect(() => {
+        if (logsEndRef.current) {
+          logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [logs]);
+
+      // Connect to SSE stream
+      useEffect(() => {
+        const connectToStream = () => {
+          const eventSource = new EventSource('/api/logs/stream');
+
+          eventSource.onopen = () => {
+            setIsConnected(true);
+          };
+
+          eventSource.onmessage = (e) => {
+            try {
+              const logEntry = JSON.parse(e.data);
+              setLogs((prevLogs) => [...prevLogs, logEntry]);
+            } catch (err) {
+              console.error('Error parsing log:', err);
+            }
+          };
+
+          eventSource.onerror = () => {
+            setIsConnected(false);
+            eventSource.close();
+            // Reconnect after 3 seconds
+            setTimeout(connectToStream, 3000);
+          };
+
+          eventSourceRef.current = eventSource;
+        };
+
+        connectToStream();
+
+        return () => {
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+        };
+      }, []);
+
+      const executeCommand = async () => {
+        if (!command.trim()) return;
+
+        try {
+          const response = await fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command })
+          });
+
+          if (!response.ok) {
+            throw new Error('Command execution failed');
+          }
+
+          setCommand('');
+        } catch (error) {
+          setLogs((prevLogs) => [
+            ...prevLogs,
+            {
+              id: prevLogs.length,
+              message: `Error: ${error.message}`,
+              type: 'error',
+              timestamp: new Date().toISOString()
+            }
+          ]);
+        }
+      };
+
+      const clearLogs = () => {
+        setLogs([]);
+      };
+
+      const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          executeCommand();
+        }
+      };
+
+      const getLogClass = (type) => {
+        return `log-entry log-${type}`;
+      };
+
+      const formatTime = (isoString) => {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString();
+      };
+
+      return (
+        <div className="terminal-container">
+          <div className="terminal-header">
+            <h1>
+              <span className="status-indicator"></span>
+              Neuro-Kernel Terminal Logger
+            </h1>
+            <span style={{ color: '#6e7681', fontSize: '12px' }}>
+              {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+            </span>
+          </div>
+
+          <div className="terminal-logs">
+            {logs.length === 0 ? (
+              <div
+                style={{
+                  color: '#6e7681',
+                  fontSize: '14px',
+                  marginTop: '20px',
+                  textAlign: 'center'
+                }}
+              >
+                Waiting for logs...
+              </div>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} className={getLogClass(log.type)}>
+                  <span className="log-timestamp">[{formatTime(log.timestamp)}]</span>
+                  {log.message}
+                </div>
+              ))
+            )}
+            <div ref={logsEndRef} />
+          </div>
+
+          <div className="terminal-footer">
+            <input
+              type="text"
+              className="command-input"
+              placeholder="Enter command... (e.g., git status, npm run build)"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+            <button className="command-btn" onClick={executeCommand}>
+              ▶ Run
+            </button>
+            <button className="clear-btn" onClick={clearLogs}>
+              Clear
+            </button>
+            <div className="log-count">{logs.length} logs</div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<TerminalLogger />, document.getElementById('root'));
+  </script>
+</body>
+</html>
