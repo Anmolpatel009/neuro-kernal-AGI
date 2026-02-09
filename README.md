@@ -132,7 +132,71 @@ Most human failure stems from **Cognitive Entropy**—the friction between confl
 
 ---
 
-## 🔄 System Mechanics: The Active Inference Loop
+## � Terminal Logger: Real-Time Development Observability
+
+### What It Is
+
+The **Terminal Logger** is a lightweight real-time dashboard that streams server logs, command outputs, and system events directly to your browser via **Server-Sent Events (SSE)**. Instead of context-switching between terminals and dashboards, you can monitor your entire system's state in one live web interface.
+
+Think of it as the "Eyes & Ears" of Neuro-Kernel's development workflow—everything happening in the backend becomes instantly visible to you.
+
+### Quick Start
+
+1. **Install Dependencies**
+   ```bash
+   cd /workspaces/neuro-kernal-AGI/terminal-logger
+   npm install
+   ```
+
+2. **Start the Server**
+   ```bash
+   npm start
+   ```
+
+3. **Open in Browser**
+   ```
+   http://localhost:3000
+   ```
+
+### How to Use It
+
+- **View Live Logs:** All system events appear automatically with color-coded categories (info, success, error, warning, command)
+- **Execute Commands:** Run shell commands directly from the dashboard and see output stream in real-time
+- **Log History:** Maintains up to 1000 log entries in memory
+- **Auto-Scroll:** Dashboard scrolls to the latest event automatically
+- **Timestamps:** Every log entry includes an ISO timestamp for debugging
+
+### Why We Added It
+
+**Problem:** During development of a complex multi-layer system like Neuro-Kernel, you need visibility into:
+- Background worker processes (LangGraph agents, vector ingestion, Neo4j queries)
+- Build & deployment events (Docker, Poetry dependency resolution)
+- Real-time system behavior (API latency, cache hits, session events)
+
+**Traditional Solution:** Open 5 terminal tabs, grep through logs, lose state on window close.
+
+**Our Solution:** A persistent, real-time web dashboard that:
+- ✅ **Reduces Context Switching** — No need to alt-tab between terminal and browser
+- ✅ **Persists Across Sessions** — Logs stay available (up to 1000 entries) until explicitly cleared
+- ✅ **Zero Overhead** — SSE is more efficient than polling; small payload only when events occur
+- ✅ **Production-Ready Path** — This foundation scales to Datadog/Prometheus monitoring in production
+
+### Technical Details
+
+- **Backend:** Express.js with SSE streaming
+- **Frontend:** Vanilla React via CDN (zero build process)
+- **Data Flow:** In-memory ring buffer (max 1000 logs) → broadcast to all connected clients
+- **Persistence:** Logs are ephemeral (cleared on server restart); for permanent audit trails, use the main system's SQLite Audit Log
+
+### API Endpoints
+
+- **GET `/api/logs/stream`** — SSE endpoint for subscribing to live log stream
+- **POST `/api/logs`** — Submit a new log entry (used by connected services)
+- **POST `/api/execute`** — Execute a shell command and stream output
+
+---
+
+## �🔄 System Mechanics: The Active Inference Loop
 
 The Neuro-Kernel does not just "predict"; it **reasons** by minimizing **Surprise (Free Energy)**.
 
