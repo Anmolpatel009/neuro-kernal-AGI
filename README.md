@@ -4,7 +4,7 @@ This `README.md` is designed to be a high-signal document. It frames your projec
 
 # Neuro-Kernel: Personal AGI & Human-Optimization Architecture
 
-![Neuro-Kernel Architecture Diagram](images/diagram-export-2-9-2026-1_13_47-PM.png)
+<img src="images/fullchart.png" alt="Neuro-Kernel Architecture Diagram" width="100%"/>
 
 **Neuro-Kernel** is a cybernetic human-operating system designed to replace "Legacy Software" (biological instincts and societal conditioning) with a **6-Layer Modular Framework**. By treating human life as a series of integrated workflows, the system minimizes "System Noise" and maximizes "Throughput" through **Active Inference** and **Recursive Self-Patching**.
 
